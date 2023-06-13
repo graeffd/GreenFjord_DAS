@@ -1,4 +1,4 @@
-# GreenFjord Broad-Band Seismometer Data Analysis
+# GreenFjord Distributed Acoustic Sensing (DAS) Data Analysis
 Repository for analyzing the data acquired by the Sintela Onyx Distributed Acoustic Sensing (DAS) interrogator at Qajuuttap Sermia (Greenland) within the GreenFjord project funded by the Swiss Polar Institute (SPI).
 
 ## Prerequisits
