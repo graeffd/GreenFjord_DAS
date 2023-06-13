@@ -6,16 +6,10 @@ Repository for analyzing the data acquired by the Sintela Onyx Distributed Acous
 * Create new environment
 
 ```
-conda create -n das
+conda env create -f das_env.yml
 ```
 
 * Activate environment
 ```
 conda activate das
-```
-
-* Install packages
-
-```
-conda install numpy scipy matplotlib pandas h5py
 ```
