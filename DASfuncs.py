@@ -2,6 +2,7 @@ import numpy as np
 import scipy.signal
 import datetime
 import os
+import sys
 import glob
 import h5py
 
@@ -90,25 +91,29 @@ def split_continuous_data(t_rec, data_rec, attrs):
     # find indices where time difference is larger than PulseRate and split there
     dt = np.diff(t_rec)/1e6
     gap_idx = np.where(dt>1/attrs['PulseRate'])[0]
+    
+    if len(gap_idx)>1: # if data gaps present
+        time_list.append(t_rec[:gap_idx[0]]) # first gapless data piece
+        data_list.append(data_rec[:gap_idx[0]]) 
+        for i in range(0,len(gap_idx)-1):
+            time_list.append(t_rec[gap_idx[i]+1:gap_idx[i+1]+1]) # gapless data in between, +1 because of np.diff index shifted
+            data_list.append(data_rec[gap_idx[i]+1:gap_idx[i+1]+1]) 
+        data_list.append(data_rec[gap_idx[-1]+1:]) # last gapless data piece
+        time_list.append(t_rec[gap_idx[-1]+1:])
 
-    time_list.append(t_rec[:gap_idx[0]]) # first gapless data piece
-    data_list.append(data_rec[:gap_idx[0]]) 
-    for i in range(0,len(gap_idx)-1):
-        time_list.append(t_rec[gap_idx[i]+1:gap_idx[i+1]+1]) # gapless data in between, +1 because of np.diff index shifted
-        data_list.append(data_rec[gap_idx[i]+1:gap_idx[i+1]+1]) 
-    data_list.append(data_rec[gap_idx[-1]+1:]) # last gapless data piece
-    time_list.append(t_rec[gap_idx[-1]+1:])
-
-    time_list = [i for i in time_list if len(i)>0] # remove empty list entries
-    data_list = [i for i in data_list if len(i)>0] 
-
+        time_list = [i for i in time_list if len(i)>1] # remove empty list entries
+        data_list = [i for i in data_list if len(i)>1] 
+    else: # if no data gaps present
+        data_list = [data_rec]
+        time_list = [t_rec]
     return time_list, data_list
 
 def fill_data_gaps(time_list, data_list, attrs, fill_value=np.nan, t_format=None):
     '''convert lists of gapless arrays into one array with fill_value at gaps'''
+    # if len(time_list)>1:
     dt_eq = 1/attrs['PulseRate']*1e6
     t_eq = np.arange(time_list[0][0], time_list[-1][-1]+dt_eq, dt_eq) # equally sampled time array
-    
+
     arr_filled = np.full((len(t_eq),data_list[0].shape[1]), fill_value) # array where to write the data to
     i=0 # index of arr_new
     for t_arr, d_arr in zip(time_list, data_list):
@@ -116,9 +121,11 @@ def fill_data_gaps(time_list, data_list, attrs, fill_value=np.nan, t_format=None
             i+=1
         arr_filled[i:i+len(t_arr)] = d_arr
         i+=len(t_arr)
-        
+
     if t_format=='datetime':
         t_eq = sintela_to_datetime(t_eq)
+    # else:
+        
     return t_eq, arr_filled
 
 def get_gaps(time_list, attrs, t_format=None):
@@ -141,6 +148,16 @@ def apply_sosfiltfilt_with_nan(sos, data, axis=-1, padtype='odd', padlen=None):
         print('{}, {}'.format(e, warning_str), end='\r')
         return np.full(data.shape, np.nan)
     
+def decimate(time_list, data_list, factor, attrs):
+    '''decimates list of gapless arrays in time by factor and outputs one array with filled gaps'''
+    sos = scipy.signal.butter(2, attrs['PulseRate']/factor/2.,'lowpass', fs=attrs['PulseRate'], output='sos') # frequency in m
+    filt_list = [apply_sosfiltfilt_with_nan(sos, arr, axis=0) for arr in data_list]
+    # fill filtered data into array
+    t_cont, data_filt = fill_data_gaps(time_list, filt_list, attrs, t_format='datetime')
+    data_dec = data_filt[::factor,:]
+    t_dec = t_cont[::factor]
+    return t_dec, data_dec
+    
 
 # this might be deleted    
 def _fill_data_gaps_with_nans(f):
@@ -162,3 +179,4 @@ def _fill_data_gaps_with_nans(f):
     data = arr_new # override the data array
     times = sintela_to_datetime(t_eq)
     return
+
