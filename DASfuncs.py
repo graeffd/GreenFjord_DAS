@@ -158,6 +158,42 @@ def decimate(time_list, data_list, factor, attrs):
     t_dec = t_cont[::factor]
     return t_dec, data_dec
     
+def interp_gaps(times_filled, data_filled, max_gap, **kwargs):
+    '''interpolates NaNs in data up to a maximum data gap length in samples'''
+    # select data gaps with a certain length
+    gap_idxs = np.where(np.isnan(data_filled).all(axis=1))[0] # find all NaNs
+    gaps_selected = []
+    gap = []
+    for i in range(len(gap_idxs)-1): # keep gap if shorter than max_gap
+        gap.append(gap_idxs[i])
+        if (gap_idxs[i+1]-gap_idxs[i] > 1):
+            if len(gap)>max_gap:
+                gaps_selected.extend(gap)
+            gap = []
+
+    # create boolean array from data gap indices
+    gaps_bool = np.full(len(times_filled), False)
+    gaps_bool[gaps_selected] = True
+
+    # interpolate selected data gaps
+    f_interp = scipy.interpolate.interp1d(times_filled[~gaps_bool], data_filled[~gaps_bool,:], axis=0, **kwargs)
+    data_interp = data_filled.copy()
+    data_interp[gaps_bool,:] = f_interp(times_filled[gaps_bool])
+    
+    return data_interp
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 # this might be deleted    
 def _fill_data_gaps_with_nans(f):
