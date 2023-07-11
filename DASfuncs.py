@@ -1,5 +1,6 @@
 import numpy as np
 import scipy.signal
+import scipy.interpolate
 import datetime
 import os
 import sys
@@ -167,7 +168,7 @@ def interp_gaps(times_filled, data_filled, max_gap, **kwargs):
     for i in range(len(gap_idxs)-1): # keep gap if shorter than max_gap
         gap.append(gap_idxs[i])
         if (gap_idxs[i+1]-gap_idxs[i] > 1):
-            if len(gap)>max_gap:
+            if len(gap)<max_gap:
                 gaps_selected.extend(gap)
             gap = []
 
@@ -176,24 +177,25 @@ def interp_gaps(times_filled, data_filled, max_gap, **kwargs):
     gaps_bool[gaps_selected] = True
 
     # interpolate selected data gaps
-    f_interp = scipy.interpolate.interp1d(times_filled[~gaps_bool], data_filled[~gaps_bool,:], axis=0, **kwargs)
+    f_interp = scipy.interpolate.interp1d(times_filled[~gaps_bool], data_filled[~gaps_bool,:], axis=0)
     data_interp = data_filled.copy()
     data_interp[gaps_bool,:] = f_interp(times_filled[gaps_bool])
     
     return data_interp
 
+def split_at_datagaps(times_filled, data_filled):
+    '''splits arrays with NaNs into a list of contiguous arrays'''
+    mask1d = np.isnan(data_filled).all(axis=1)
+    new_data_list = [data_filled[s,:] for s in np.ma.clump_unmasked(np.ma.array(times_filled, mask=mask1d))]
+    new_time_list = [times_filled[s] for s in np.ma.clump_unmasked(np.ma.array(times_filled, mask=mask1d))]
+    return new_time_list, new_data_list
 
 
 
 
 
 
-
-
-
-
-
-
+##### RECYCLING ######
 
 # this might be deleted    
 def _fill_data_gaps_with_nans(f):
